@@ -317,68 +317,117 @@ document.addEventListener('DOMContentLoaded', function() {
     const tdeeForm = document.getElementById('tdee-form');
     if (tdeeForm) {
         tdeeForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            // ... (Get form values remains the same) ...
-            if (!age || !gender || !height || !weight || !activityLevel || !goal) {
-                alert('Please fill in all fields.');
-                return;
-            }
-            // ... (BMR calculation remains the same) ...
-            // ... (TDEE calculation remains the same) ...
-            // ... (Goal adjustment remains the same) ...
+            event.preventDefault(); // Prevent default form submission
+            console.log("TDEE form submitted, default prevented."); // Debug log
+            
+            try { // Add try block
+                const ageInput = document.getElementById('age');
+                const genderInput = document.getElementById('gender');
+                const heightInput = document.getElementById('height');
+                const weightInput = document.getElementById('weight');
+                const activityLevelInput = document.getElementById('activity-level');
+                const goalInput = document.getElementById('goal');
 
-            // Calculate Macronutrient Goals
-            userNutrientGoals = calculateNutrientGoals(userTdee, weight, goal);
+                // Validate all inputs exist before accessing .value
+                if (!ageInput || !genderInput || !heightInput || !weightInput || !activityLevelInput || !goalInput) {
+                    console.error('One or more form input elements not found!');
+                    alert('Form elements missing. Please reload the page or check the HTML.');
+                    return;
+                }
 
-            // Display TDEE Results
-            const resultsDiv = document.getElementById('nutrient-summary'); // Target the correct div now
-            if (resultsDiv) {
-                 resultsDiv.innerHTML = `
-                    <h3><i class="fas fa-calculator"></i> Your Estimated Daily Needs</h3>
-                    <ul>
-                        <li><strong>Calories (TDEE):</strong> <span>${userTdee.toFixed(0)} kcal/day</span></li>
-                        <li><strong>Protein:</strong> <span>${userNutrientGoals.proteinGrams} g/day</span></li>
-                        <li><strong>Carbohydrates:</strong> <span>${userNutrientGoals.carbGrams} g/day</span></li>
-                        <li><strong>Fat:</strong> <span>${userNutrientGoals.fatGrams} g/day</span></li>
-                    </ul>
-                     <p class="disclaimer"><em>Estimates based on provided data. Individual needs may vary.</em></p>
-                `;
-                 // No need for resultsDiv.classList.add('show'); if it's always visible
-            } else {
-                console.error("Nutrient summary display area not found.");
-            }
+                const age = parseInt(ageInput.value);
+                const gender = genderInput.value;
+                const height = parseInt(heightInput.value);
+                const weight = parseInt(weightInput.value);
+                const activityLevel = parseFloat(activityLevelInput.value);
+                const goal = goalInput.value;
 
-            // Display Water Recommendation (Simple Example)
-            const waterDiv = document.getElementById('water-recommendation');
-            if (waterDiv) {
-                const waterLitres = (weight * 0.033).toFixed(1); // Simple formula (33ml per kg)
-                waterDiv.innerHTML = `<h3><i class="fas fa-tint"></i> Daily Water Intake</h3>
-                                      <p>Aim for approximately <strong>${waterLitres} litres</strong> per day.</p>`;
-            }
+                // Check for valid parsed numbers and selections
+                if (isNaN(age) || !gender || isNaN(height) || isNaN(weight) || isNaN(activityLevel) || !goal) {
+                    alert('Please fill in all fields with valid values.');
+                    console.warn('Form validation failed: Invalid input values', { age, gender, height, weight, activityLevel, goal });
+                    return;
+                }
 
-             // Display Basic Health Insights (Simple Example)
-            const insightsDiv = document.getElementById('health-insights');
-            if (insightsDiv) {
-                let insightsHtml = `<h3><i class="fas fa-heartbeat"></i> Health & Nutrient Insights</h3><ul>`;
-                if (goal === 'lose') insightsHtml += `<li>Focus on consuming lean protein sources and complex carbs while maintaining a calorie deficit.</li>`;
-                if (goal === 'gain') insightsHtml += `<li>Ensure sufficient calorie surplus with adequate protein for muscle growth. Consider strength training.</li>`;
-                if (goal === 'maintain') insightsHtml += `<li>Balance your intake across meals to match your TDEE. Focus on nutrient-dense foods.</li>`;
-                insightsHtml += `<li>Prioritize whole foods like fruits, vegetables, lean meats, and whole grains.</li>`;
-                insightsHtml += `<li>Protein Goal: ${userNutrientGoals.proteinGrams}g helps with satiety (feeling full) ${goal === 'gain' ? 'and muscle repair/growth' : 'and preserving muscle mass'}.</li>`;
-                 insightsHtml += `<li>Activity Level (${activityLevel}): Regular activity is crucial for overall health and achieving your goals.</li>`;
-                insightsHtml += `</ul>`;
-                insightsDiv.innerHTML = insightsHtml;
-            }
+                // Calculate BMR (Harris-Benedict Equation)
+                let bmr;
+                if (gender === 'male') {
+                    bmr = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+                } else { // female
+                    bmr = 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+                }
 
-            // Display Weight Projection Chart
-            displayWeightProjection(goal, weight, userTdee, bmr * activityLevel); // Pass original TDEE for baseline
+                // Calculate TDEE
+                let userTdee = bmr * activityLevel;
 
-            // Try to display recommendations immediately if menu is already loaded
-            const recommendationContentDiv = document.getElementById('recommendation-content');
-            if (fetchedMenuData) {
-                displayRecommendations(fetchedMenuData, userNutrientGoals);
-            } else if(recommendationContentDiv) {
-                recommendationContentDiv.innerHTML = '<p>Calculating recommendations... (Waiting for menu data)</p>'; 
+                // Adjust TDEE based on goal
+                let maintenanceTdee = userTdee; // Store original before adjustment
+                if (goal === 'lose') {
+                    userTdee -= 500; // Calorie deficit for weight loss
+                } else if (goal === 'gain') {
+                    userTdee += 300; // Calorie surplus for weight gain
+                }
+                userTdee = Math.max(1200, userTdee); // Ensure TDEE doesn't go unreasonably low
+
+                // Calculate Macronutrient Goals
+                userNutrientGoals = calculateNutrientGoals(userTdee, weight, goal);
+
+                // Display TDEE Results
+                const resultsDiv = document.getElementById('nutrient-summary'); 
+                if (resultsDiv) {
+                    resultsDiv.innerHTML = `
+                        <h3><i class="fas fa-calculator"></i> Your Estimated Daily Needs</h3>
+                        <ul>
+                            <li><strong>Calories (TDEE):</strong> <span>${userTdee.toFixed(0)} kcal/day</span></li>
+                            <li><strong>Protein:</strong> <span>${userNutrientGoals.proteinGrams} g/day</span></li>
+                            <li><strong>Carbohydrates:</strong> <span>${userNutrientGoals.carbGrams} g/day</span></li>
+                            <li><strong>Fat:</strong> <span>${userNutrientGoals.fatGrams} g/day</span></li>
+                        </ul>
+                         <p class="disclaimer"><em>Estimates based on provided data. Individual needs may vary.</em></p>
+                    `;
+                } else {
+                    console.error("Nutrient summary display area not found.");
+                }
+
+                // Display Water Recommendation 
+                const waterDiv = document.getElementById('water-recommendation');
+                if (waterDiv) {
+                    const waterLitres = (weight * 0.033).toFixed(1); 
+                    waterDiv.innerHTML = `<h3><i class="fas fa-tint"></i> Daily Water Intake</h3>
+                                          <p>Aim for approximately <strong>${waterLitres} litres</strong> per day.</p>`;
+                }
+
+                 // Display Basic Health Insights
+                const insightsDiv = document.getElementById('health-insights');
+                if (insightsDiv) {
+                    let insightsHtml = `<h3><i class="fas fa-heartbeat"></i> Health & Nutrient Insights</h3><ul>`;
+                    if (goal === 'lose') insightsHtml += `<li>Focus on consuming lean protein sources and complex carbs while maintaining a calorie deficit.</li>`;
+                    if (goal === 'gain') insightsHtml += `<li>Ensure sufficient calorie surplus with adequate protein for muscle growth. Consider strength training.</li>`;
+                    if (goal === 'maintain') insightsHtml += `<li>Balance your intake across meals to match your TDEE. Focus on nutrient-dense foods.</li>`;
+                    insightsHtml += `<li>Prioritize whole foods like fruits, vegetables, lean meats, and whole grains.</li>`;
+                    insightsHtml += `<li>Protein Goal: ${userNutrientGoals.proteinGrams}g helps with satiety (feeling full) ${goal === 'gain' ? 'and muscle repair/growth' : 'and preserving muscle mass'}.</li>`;
+                    insightsHtml += `<li>Activity Level (${activityLevel}): Regular activity is crucial for overall health and achieving your goals.</li>`;
+                    insightsHtml += `</ul>`;
+                    insightsDiv.innerHTML = insightsHtml;
+                }
+
+                // Display Weight Projection Chart
+                displayWeightProjection(goal, weight, userTdee, maintenanceTdee); // Pass maintenance TDEE
+
+                // Try to display recommendations immediately if menu is already loaded
+                const recommendationContentDiv = document.getElementById('recommendation-content');
+                if (fetchedMenuData) {
+                    console.log("Menu data available, calling displayRecommendations..."); // Debug log
+                    displayRecommendations(fetchedMenuData, userNutrientGoals);
+                } else if(recommendationContentDiv) {
+                    console.log("Menu data not yet available, showing waiting message..."); // Debug log
+                    recommendationContentDiv.innerHTML = '<p>Calculating recommendations... (Waiting for menu data)</p>'; 
+                }
+                console.log("Form processing complete."); // Debug log
+
+            } catch (error) { // Add catch block
+                 console.error("Error during form submission processing:", error);
+                 alert("An error occurred while calculating results. Please check the console for details.");
             }
 
         });
