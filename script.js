@@ -40,6 +40,9 @@ featureCards.forEach(card => {
 let currentMenuData = null;
 let userNutrientGoals = null;
 
+// Global variable to store fetched menu data
+let fetchedMenuData = null;
+
 // Google Apps Script Web App URL
 const menuApiUrl = 'https://script.google.com/macros/s/AKfycbx4TU1Bx26mBZHoCQU34VTeG7iM02xXQ0532bjb3-QORDrZ9FQ1zwP9ieznGCAiqr8-/exec';
 
@@ -55,25 +58,32 @@ async function loadMenu() {
     try {
         const response = await fetch(menuApiUrl);
         if (!response.ok) {
-            // Handle HTTP errors (e.g., 404, 500 from Apps Script itself)
             throw new Error(`Failed to fetch menu: ${response.status} ${response.statusText}`);
         }
 
         const menuData = await response.json();
 
-        // Check if the Apps Script returned an error object
         if (menuData.error) {
             throw new Error(`Error from menu API: ${menuData.message || menuData.error}`);
         }
-         // Check if all meal arrays are empty (could happen if day column not found)
+
+        // Store fetched data globally
+        fetchedMenuData = menuData;
+
+        // Check if recommendations should be displayed now
+        if (userNutrientGoals) {
+            displayRecommendations(fetchedMenuData, userNutrientGoals);
+        }
+
         if (!menuData.breakfast?.length && !menuData.lunch?.length && !menuData.dinner?.length) {
-             // Display a specific message if no items were found for today
             menuContent.innerHTML = `<p class="no-menu-message">No menu items found for today in the sheet. ${menuData.info || ''}</p>`;
             menuContent.classList.add('show');
             console.log("No menu items returned from API for today.", menuData);
+            // Also clear recommendations if no menu
+            const recommendationDiv = document.getElementById('recommendation-content');
+            if(recommendationDiv) recommendationDiv.innerHTML = '<p>Cannot generate recommendations without menu data.</p>';
             return;
         }
-
 
         const today = new Date();
         const dateStr = today.toLocaleDateString('en-US', { 
@@ -85,7 +95,6 @@ async function loadMenu() {
 
         let html = `<div class="date-display">Menu for ${dateStr}</div>`;
 
-        // Process breakfast, lunch, dinner from fetched data
         const meals = ['breakfast', 'lunch', 'dinner'];
         meals.forEach(meal => {
             if (menuData[meal] && menuData[meal].length > 0) {
@@ -94,7 +103,6 @@ async function loadMenu() {
                     <ul>`;
                 
                 menuData[meal].forEach(item => {
-                    // Ensure nutrition data exists, provide defaults if not
                     const nutrition = item.nutrition || { calories: 'N/A', protein: 'N/A', carbs: 'N/A', fat: 'N/A' };
                     html += `<li>
                         <span class="item-name">${item.name || 'Unnamed Item'}</span>
@@ -111,303 +119,123 @@ async function loadMenu() {
             }
         });
         
-
         menuContent.innerHTML = html;
         menuContent.classList.add('show');
 
     } catch (error) {
         console.error('Error loading menu:', error);
         menuContent.innerHTML = `<p class="error-message">An error occurred while loading the menu: ${error.message}. Please try again later.</p>`;
-        menuContent.classList.add('show'); // Show the error message
+        menuContent.classList.add('show');
+        fetchedMenuData = null; // Reset on error
+        // Also clear recommendations on error
+        const recommendationDiv = document.getElementById('recommendation-content');
+        if(recommendationDiv) recommendationDiv.innerHTML = '<p>Cannot generate recommendations due to menu loading error.</p>';
     }
 }
 
-// Function to calculate nutrition
-function calculateNutrition() {
-    const height = parseFloat(document.getElementById('height').value);
-    const weight = parseFloat(document.getElementById('weight').value);
-    const age = parseInt(document.getElementById('age').value);
-    const gender = document.getElementById('gender').value;
-    const activity = document.getElementById('activity').value;
-    const goal = document.getElementById('goal').value;
-
-    if (!height || !weight || !age || !gender || !activity || !goal) {
-        alert('Please fill in all fields');
+// --- Recommendation Logic ---
+function displayRecommendations(menu, goals) {
+    const recommendationDiv = document.getElementById('recommendation-content');
+    if (!recommendationDiv) return;
+    if (!menu || !goals) {
+        recommendationDiv.innerHTML = '<p>Please calculate your goals and wait for the menu to load.</p>';
         return;
     }
 
-    // Calculate BMR (Mifflin-St Jeor Equation)
-    let bmr;
-    if (gender === 'male') {
-        bmr = 10 * weight + 6.25 * height - 5 * age + 5;
-    } else {
-        bmr = 10 * weight + 6.25 * height - 5 * age - 161;
-    }
+    let html = '<p>Based on your goals and today\'s menu:</p>';
+    const meals = ['breakfast', 'lunch', 'dinner'];
+    let totalRecommendedCalories = 0;
+    let totalRecommendedProtein = 0;
+    let totalRecommendedCarbs = 0;
+    let totalRecommendedFat = 0;
 
-    // Calculate TDEE based on activity level
-    const activityMultipliers = {
-        sedentary: 1.2,
-        light: 1.375,
-        moderate: 1.55,
-        very: 1.725
-    };
+    // Calculate per-meal targets (simple division)
+    const targetCaloriesPerMeal = goals.tdee / 3;
+    const targetProteinPerMeal = goals.proteinGrams / 3;
+    // Keep Carb/Fat targets simpler for this heuristic
+    // const targetCarbsPerMeal = goals.carbGrams / 3;
+    // const targetFatPerMeal = goals.fatGrams / 3;
 
-    let tdee = bmr * activityMultipliers[activity];
-
-    // Adjust TDEE based on goal
-    if (goal === 'lose') {
-        tdee -= 500; // 500 calorie deficit
-    } else if (goal === 'gain') {
-        tdee += 500; // 500 calorie surplus
-    }
-
-    // Calculate macronutrients
-    const proteinGrams = Math.round(weight * 2.2); // 1g per pound
-    const proteinCalories = proteinGrams * 4;
-    const remainingCalories = tdee - proteinCalories;
-    const carbGrams = Math.round((remainingCalories * 0.5) / 4); // 50% carbs
-    const fatGrams = Math.round((remainingCalories * 0.5) / 9); // 50% fat
-
-    // Update nutrient summary
-    const summaryList = document.querySelector('#nutrient-summary ul');
-    if (summaryList) {
-        summaryList.querySelector('li:nth-child(1) span').textContent = `${Math.round(tdee)} kcal`;
-        summaryList.querySelector('li:nth-child(2) span').textContent = `${proteinGrams}g`;
-        summaryList.querySelector('li:nth-child(3) span').textContent = `${carbGrams}g`;
-        summaryList.querySelector('li:nth-child(4) span').textContent = `${fatGrams}g`;
-    }
-
-    // Update water recommendation
-    const waterRecommendation = Math.round(weight * 0.033 * 1000); // 33ml per kg
-    document.querySelector('#water-recommendation p').textContent = `${waterRecommendation} ml`;
-
-    // Update health insights
-    const healthInsights = document.querySelector('#health-insights p');
-    if (healthInsights) {
-        let insights = [];
-        if (goal === 'lose') {
-            insights.push('Focus on protein-rich foods to maintain muscle mass while losing fat');
-            insights.push('Include fiber-rich foods to stay full longer');
-        } else if (goal === 'gain') {
-            insights.push('Prioritize calorie-dense foods to meet your increased energy needs');
-            insights.push('Ensure adequate protein intake for muscle growth');
-        } else {
-            insights.push('Maintain balanced meals with all macronutrients');
-            insights.push('Focus on whole, unprocessed foods for optimal health');
+    meals.forEach(meal => {
+        html += `<div class="meal-recommendation">
+                    <h5>${meal.charAt(0).toUpperCase() + meal.slice(1)} Recommendation</h5>`;
+        
+        const availableItems = menu[meal] ? [...menu[meal]] : []; // Get items for this meal
+        if (!availableItems.length) {
+            html += '<p>No items available for this meal today.</p></div>';
+            return; // Skip to next meal
         }
-        healthInsights.innerHTML = insights.map(insight => `<li>${insight}</li>`).join('');
-    }
 
-    // Update recommendations based on current menu
-    if (currentMenuData) {
-        updateRecommendations({
-            tdee: Math.round(tdee),
-            proteinGrams: proteinGrams,
-            carbGrams: carbGrams,
-            fatGrams: fatGrams
-        });
-    }
+        let recommendedItems = [];
+        let currentCalories = 0;
+        let currentProtein = 0;
+        let currentCarbs = 0;
+        let currentFat = 0;
 
-    // Update weight projection chart
-    updateWeightProjectionChart(weight, goal, tdee);
-}
+        // Simple Greedy Approach: Add items until calorie target is approached
+        // Sort by protein density might be better, but let's start simple.
+        availableItems.sort(() => Math.random() - 0.5); // Randomize slightly to vary results
 
-// Update recommendations based on current menu and nutrient goals
-function updateRecommendations(nutrientGoals) {
-    const recommendationOutputDiv = document.querySelector('.recommendation-content');
-    if (recommendationOutputDiv && currentMenuData) {
-        const proteinPerMeal = nutrientGoals.proteinGrams / 3;
-        const caloriesPerMeal = nutrientGoals.tdee / 3;
-        const needsPerMeal = { 
-            proteinTargetPerMeal: proteinPerMeal,
-            calorieTargetPerMeal: caloriesPerMeal
-        };
+        for (const item of availableItems) {
+            const itemCalories = parseFloat(item.nutrition?.calories) || 0;
+            const itemProtein = parseFloat(item.nutrition?.protein) || 0;
+            const itemCarbs = parseFloat(item.nutrition?.carbs) || 0;
+            const itemFat = parseFloat(item.nutrition?.fat) || 0;
 
-        recommendationOutputDiv.innerHTML = `
-            <div class="daily-recommendation">
-                <h4>Today's Meal Plan (${getDayName(new Date().getDay())})</h4>
-                <div class="meal-blocks">
-                    <div class="meal-block">
-                        <h5>Breakfast</h5>
-                        ${generateMealRecommendation('Breakfast', currentMenuData.breakfast, needsPerMeal)}
-                    </div>
-                    <div class="meal-block">
-                        <h5>Lunch</h5>
-                        ${generateMealRecommendation('Lunch', currentMenuData.lunch, needsPerMeal)}
-                    </div>
-                    <div class="meal-block">
-                        <h5>Dinner</h5>
-                        ${generateMealRecommendation('Dinner', currentMenuData.dinner, needsPerMeal)}
-                    </div>
-                </div>
-                <p class="disclaimer">
-                    <em>Portions are calculated based on today's menu to meet your daily nutrient goals. 
-                    Adjust portions based on your hunger and specific needs.</em>
-                </p>
-            </div>
-        `;
-        recommendationOutputDiv.classList.add('show');
-    }
-}
+            // Check if adding the item keeps calories within a reasonable range of the target
+            if (itemCalories > 0 && (currentCalories + itemCalories <= targetCaloriesPerMeal * 1.25)) { // Allow up to 25% overshoot
+                recommendedItems.push(item);
+                currentCalories += itemCalories;
+                currentProtein += itemProtein;
+                currentCarbs += itemCarbs;
+                currentFat += itemFat;
 
-// Generate meal recommendations with specific portions
-function generateMealRecommendation(mealType, availableItemsWithNutrition, userNeedsPerMeal) {
-    if (!availableItemsWithNutrition || availableItemsWithNutrition.length === 0) {
-        return `<p>No ${mealType} items available or data missing.</p>`;
-    }
+                 // Optional: Stop if protein target is met? Or just fill calories?
+                 // Let's stick to filling calories for now.
+            }
 
-    const { proteinTargetPerMeal, calorieTargetPerMeal } = userNeedsPerMeal;
-    let recommendation = [];
-    let currentProtein = 0;
-    let currentCalories = 0;
-
-    // Filter and sort items by protein content
-    let usableItems = availableItemsWithNutrition.filter(item => 
-        item.nutrition && 
-        !item.nutrition.error && 
-        item.nutrition.protein && 
-        item.nutrition.calories
-    );
-    
-    usableItems.sort((a, b) => (b.nutrition.protein || 0) - (a.nutrition.protein || 0));
-
-    // Calculate portions to meet targets
-    for (const item of usableItems) {
-        if (currentProtein < proteinTargetPerMeal * 1.2 && currentCalories < calorieTargetPerMeal * 1.2) {
-            // Calculate how much of this item we need for protein
-            const proteinPer100g = item.nutrition.protein;
-            const caloriesPer100g = item.nutrition.calories;
-            
-            // Calculate portion size needed (in grams)
-            let portionForProtein = ((proteinTargetPerMeal - currentProtein) / proteinPer100g) * 100;
-            let portionForCalories = ((calorieTargetPerMeal - currentCalories) / caloriesPer100g) * 100;
-            
-            // Take the smaller portion to avoid overshooting either target
-            let recommendedPortion = Math.min(portionForProtein, portionForCalories);
-            
-            // Round to nearest 25g for practicality
-            recommendedPortion = Math.round(recommendedPortion / 25) * 25;
-            
-            // Minimum portion size of 50g
-            if (recommendedPortion >= 50) {
-                const proteinFromPortion = (recommendedPortion * proteinPer100g) / 100;
-                const caloriesFromPortion = (recommendedPortion * caloriesPer100g) / 100;
-                
-                recommendation.push({
-                    name: item.name,
-                    portion: recommendedPortion,
-                    protein: proteinFromPortion,
-                    calories: caloriesFromPortion
-                });
-                
-                currentProtein += proteinFromPortion;
-                currentCalories += caloriesFromPortion;
+            // Break if we are already reasonably close or over the calorie target
+            if (currentCalories >= targetCaloriesPerMeal * 0.9) { 
+               // break; // Can enable this later if recommendations get too large
             }
         }
-    }
 
-    if (recommendation.length === 0) {
-        return `<p>Could not generate a specific recommendation for ${mealType}. Try choosing high-protein options if available.</p>`;
-    }
-
-    let html = `<div class="meal-recommendation">`;
-    recommendation.forEach(item => {
-        html += `<div class="portion-recommendation">
-            <span class="food-item">${item.portion}g of ${item.name}</span>
-            <span class="nutrition-values">(${item.protein.toFixed(1)}g protein / ${item.calories.toFixed(0)} kcal)</span>
-        </div>`;
-    });
-    html += `<div class="meal-totals">
-        Meal Totals: ${currentProtein.toFixed(1)}g protein / ${currentCalories.toFixed(0)} kcal
-    </div>`;
-    html += '</div>';
-
-    return html;
-}
-
-// Helper function to get day name
-function getDayName(dayIndex) {
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    return days[dayIndex];
-}
-
-// Form submission handler
-document.getElementById('profile-form').addEventListener('submit', function(event) {
-    event.preventDefault();
-
-    // Get form values
-    const height = parseFloat(document.getElementById('height').value);
-    const weight = parseFloat(document.getElementById('weight').value);
-    const age = parseInt(document.getElementById('age').value);
-    const gender = document.getElementById('gender').value;
-    const activity = document.getElementById('activity').value;
-    const goal = document.getElementById('goal').value;
-
-    // Calculate BMR (Mifflin-St Jeor Equation)
-    let bmr;
-    if (gender === 'male') {
-        bmr = 10 * weight + 6.25 * height - 5 * age + 5;
-    } else {
-        bmr = 10 * weight + 6.25 * height - 5 * age - 161;
-    }
-
-    // Calculate TDEE based on activity level
-    const activityMultipliers = {
-        sedentary: 1.2,
-        light: 1.375,
-        moderate: 1.55,
-        very: 1.725
-    };
-
-    const tdee = bmr * activityMultipliers[activity];
-
-    // Adjust TDEE based on goal
-    if (goal === 'lose') {
-        tdee -= 500; // 500 calorie deficit
-    } else if (goal === 'gain') {
-        tdee += 500; // 500 calorie surplus
-    }
-
-    // Calculate nutrient goals
-    const nutrientGoals = calculateNutrientGoals(tdee, weight, goal);
-    userNutrientGoals = nutrientGoals;
-
-    // Update nutrient summary display
-    const summaryList = document.querySelector('#nutrient-summary ul');
-    if (summaryList) {
-        summaryList.querySelector('li:nth-child(1) span').textContent = `${nutrientGoals.tdee} kcal`;
-        summaryList.querySelector('li:nth-child(2) span').textContent = `${nutrientGoals.proteinGrams} g`;
-        summaryList.querySelector('li:nth-child(3) span').textContent = `${nutrientGoals.carbGrams} g`;
-        summaryList.querySelector('li:nth-child(4) span').textContent = `${nutrientGoals.fatGrams} g`;
-    }
-
-    // Update recommendations with current menu data
-    updateRecommendations(nutrientGoals);
-
-    // Calculate and display water recommendation
-    const waterRecommendation = Math.round(weight * 0.033 * 1000); // 33ml per kg
-    document.querySelector('#water-recommendation p').textContent = `${waterRecommendation} ml`;
-
-    // Update health insights
-    const healthInsights = document.querySelector('#health-insights p');
-    if (healthInsights) {
-        let insights = [];
-        if (goal === 'lose') {
-            insights.push('Focus on protein-rich foods to maintain muscle mass while losing fat');
-            insights.push('Include fiber-rich foods to stay full longer');
-        } else if (goal === 'gain') {
-            insights.push('Prioritize calorie-dense foods to meet your increased energy needs');
-            insights.push('Ensure adequate protein intake for muscle growth');
+        if (recommendedItems.length > 0) {
+            html += '<ul>';
+            recommendedItems.forEach(recItem => {
+                html += `<li>${recItem.name}</li>`; // Just list the item name
+            });
+            html += '</ul>';
+            html += `<p class="meal-nutrition-summary">Est. Nutrients: 
+                        ${Math.round(currentCalories)} kcal, 
+                        ${Math.round(currentProtein)}g P, 
+                        ${Math.round(currentCarbs)}g C, 
+                        ${Math.round(currentFat)}g F
+                     </p>`;
+            // Accumulate totals
+            totalRecommendedCalories += currentCalories;
+            totalRecommendedProtein += currentProtein;
+            totalRecommendedCarbs += currentCarbs;
+            totalRecommendedFat += currentFat;
         } else {
-            insights.push('Maintain balanced meals with all macronutrients');
-            insights.push('Focus on whole, unprocessed foods for optimal health');
+            html += '<p>Could not select suitable items for this meal based on targets.</p>';
         }
-        healthInsights.innerHTML = insights.map(insight => `<li>${insight}</li>`).join('');
-    }
 
-    // Update weight projection chart
-    updateWeightProjectionChart(weight, goal, tdee);
-});
+        html += '</div>'; // Close meal-recommendation
+    });
+
+     // Add overall summary
+    html += `<div class="total-recommendation-summary">
+                <h5>Overall Estimated Intake:</h5>
+                <p>Calories: ${Math.round(totalRecommendedCalories)} / ${goals.tdee} kcal</p>
+                <p>Protein: ${Math.round(totalRecommendedProtein)} / ${goals.proteinGrams} g</p>
+                <p>Carbs: ${Math.round(totalRecommendedCarbs)} / ${goals.carbGrams} g</p>
+                <p>Fat: ${Math.round(totalRecommendedFat)} / ${goals.fatGrams} g</p>
+             </div>`;
+
+    recommendationDiv.innerHTML = html;
+}
+// --- End Recommendation Logic ---
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', function() {
@@ -485,84 +313,182 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load the menu from the API
     loadMenu(); // Call the async function
 
-    // Initialize form submission
-    const form = document.getElementById('profile-form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            calculateNutrition();
+    // TDEE Calculator Event Listener
+    const tdeeForm = document.getElementById('tdee-form');
+    if (tdeeForm) {
+        tdeeForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            // ... (Get form values remains the same) ...
+            if (!age || !gender || !height || !weight || !activityLevel || !goal) {
+                alert('Please fill in all fields.');
+                return;
+            }
+            // ... (BMR calculation remains the same) ...
+            // ... (TDEE calculation remains the same) ...
+            // ... (Goal adjustment remains the same) ...
+
+            // Calculate Macronutrient Goals
+            userNutrientGoals = calculateNutrientGoals(userTdee, weight, goal);
+
+            // Display TDEE Results
+            const resultsDiv = document.getElementById('nutrient-summary'); // Target the correct div now
+            if (resultsDiv) {
+                 resultsDiv.innerHTML = `
+                    <h3><i class="fas fa-calculator"></i> Your Estimated Daily Needs</h3>
+                    <ul>
+                        <li><strong>Calories (TDEE):</strong> <span>${userTdee.toFixed(0)} kcal/day</span></li>
+                        <li><strong>Protein:</strong> <span>${userNutrientGoals.proteinGrams} g/day</span></li>
+                        <li><strong>Carbohydrates:</strong> <span>${userNutrientGoals.carbGrams} g/day</span></li>
+                        <li><strong>Fat:</strong> <span>${userNutrientGoals.fatGrams} g/day</span></li>
+                    </ul>
+                     <p class="disclaimer"><em>Estimates based on provided data. Individual needs may vary.</em></p>
+                `;
+                 // No need for resultsDiv.classList.add('show'); if it's always visible
+            } else {
+                console.error("Nutrient summary display area not found.");
+            }
+
+            // Display Water Recommendation (Simple Example)
+            const waterDiv = document.getElementById('water-recommendation');
+            if (waterDiv) {
+                const waterLitres = (weight * 0.033).toFixed(1); // Simple formula (33ml per kg)
+                waterDiv.innerHTML = `<h3><i class="fas fa-tint"></i> Daily Water Intake</h3>
+                                      <p>Aim for approximately <strong>${waterLitres} litres</strong> per day.</p>`;
+            }
+
+             // Display Basic Health Insights (Simple Example)
+            const insightsDiv = document.getElementById('health-insights');
+            if (insightsDiv) {
+                let insightsHtml = `<h3><i class="fas fa-heartbeat"></i> Health & Nutrient Insights</h3><ul>`;
+                if (goal === 'lose') insightsHtml += `<li>Focus on consuming lean protein sources and complex carbs while maintaining a calorie deficit.</li>`;
+                if (goal === 'gain') insightsHtml += `<li>Ensure sufficient calorie surplus with adequate protein for muscle growth. Consider strength training.</li>`;
+                if (goal === 'maintain') insightsHtml += `<li>Balance your intake across meals to match your TDEE. Focus on nutrient-dense foods.</li>`;
+                insightsHtml += `<li>Prioritize whole foods like fruits, vegetables, lean meats, and whole grains.</li>`;
+                insightsHtml += `<li>Protein Goal: ${userNutrientGoals.proteinGrams}g helps with satiety (feeling full) ${goal === 'gain' ? 'and muscle repair/growth' : 'and preserving muscle mass'}.</li>`;
+                 insightsHtml += `<li>Activity Level (${activityLevel}): Regular activity is crucial for overall health and achieving your goals.</li>`;
+                insightsHtml += `</ul>`;
+                insightsDiv.innerHTML = insightsHtml;
+            }
+
+            // Display Weight Projection Chart
+            displayWeightProjection(goal, weight, userTdee, bmr * activityLevel); // Pass original TDEE for baseline
+
+            // Try to display recommendations immediately if menu is already loaded
+            const recommendationContentDiv = document.getElementById('recommendation-content');
+            if (fetchedMenuData) {
+                displayRecommendations(fetchedMenuData, userNutrientGoals);
+            } else if(recommendationContentDiv) {
+                recommendationContentDiv.innerHTML = '<p>Calculating recommendations... (Waiting for menu data)</p>'; 
+            }
+
         });
     }
-});
 
-// Function to update weight projection chart
-function updateWeightProjectionChart(currentWeight, goal, tdee) {
-    const ctx = document.getElementById('weightChart').getContext('2d');
-    const weeks = 12;
-    const labels = Array.from({length: weeks}, (_, i) => `Week ${i + 1}`);
-    
-    let projectedWeights = [currentWeight];
-    for (let i = 1; i < weeks; i++) {
-        let weightChange;
+    // Placeholder for Chart.js integration
+    function displayWeightProjection(goal, currentWeight, targetTdee, maintenanceTdee) {
+        const ctx = document.getElementById('weightChart')?.getContext('2d');
+        if (!ctx) return;
+
+        const weeks = 12;
+        const labels = Array.from({length: weeks + 1}, (_, i) => `Week ${i}`);
+        const weightData = [currentWeight];
+
+        let weeklyCalorieDiff = 0;
         if (goal === 'lose') {
-            weightChange = -0.5; // 0.5kg per week
+            weeklyCalorieDiff = (targetTdee - maintenanceTdee) * 7; // Should be negative
         } else if (goal === 'gain') {
-            weightChange = 0.5; // 0.5kg per week
-        } else {
-            weightChange = 0;
+            weeklyCalorieDiff = (targetTdee - maintenanceTdee) * 7; // Should be positive
         }
-        projectedWeights.push(projectedWeights[i-1] + weightChange);
-    }
+        
+        // Approx 7700 kcal per kg of fat/muscle change
+        const kgChangePerWeek = weeklyCalorieDiff / 7700; 
 
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Projected Weight (kg)',
-                data: projectedWeights,
-                borderColor: '#00796B',
-                tension: 0.4,
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    min: Math.min(...projectedWeights) - 2,
-                    max: Math.max(...projectedWeights) + 2
+        for (let i = 1; i <= weeks; i++) {
+            let projectedWeight = weightData[i-1] + kgChangePerWeek;
+            // Add slight randomness/variation to make it look less linear
+            projectedWeight += (Math.random() - 0.5) * 0.1; // +/- 0.05 kg noise
+            // Ensure weight doesn't go below a reasonable minimum (e.g., 30kg)
+            weightData.push(Math.max(30, projectedWeight)); 
+        }
+
+        // Destroy previous chart instance if exists
+        if(window.weightChartInstance) {
+            window.weightChartInstance.destroy();
+        }
+
+        // Create new chart
+        window.weightChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Estimated Weight Projection (kg)',
+                    data: weightData,
+                    borderColor: '#00796B', // Teal color
+                    backgroundColor: 'rgba(0, 121, 107, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false, // Start near the actual weight range
+                        title: {
+                            display: true,
+                            text: 'Weight (kg)'
+                        }
+                    },
+                    x: {
+                         title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
                 }
             }
-        }
-    });
-}
+        });
+    }
+
+});
+
+// --- Helper Functions (Keep Calculate Nutrient Goals) ---
 
 // Calculate nutrient goals based on user inputs
 function calculateNutrientGoals(tdee, weightKg, goal) {
-    // Protein Goal (1.2g/kg for sedentary/maintain, 1.6g/kg for active/gain/loss)
-    let proteinMultiplier = 1.2;
-    if (goal === 'gain' || goal === 'lose') {
-        proteinMultiplier = 1.6;
-    }
+    // Protein Goal (1.2g/kg for sedentary/maintain, 1.6-2.2g/kg for active/gain/loss)
+    let proteinMultiplier = 1.6; // Default to higher end for active users/goals
+    // Example: Adjust based on goal if needed, but 1.6 is often a good baseline
+    // if (goal === 'lose') proteinMultiplier = 1.8;
+    // if (goal === 'gain') proteinMultiplier = 1.8;
 
     const proteinGrams = Math.round(weightKg * proteinMultiplier);
     const proteinCalories = proteinGrams * 4;
 
-    // Macro Split (adjust as needed, e.g., 40% Carb, 30% Fat)
+    // Macro Split (Example: 40% Carb, 30% Protein, 30% Fat - adjust % as needed)
+    // Let's stick to simple 50/50 split of remaining for now
     const remainingCalories = tdee - proteinCalories;
-    const carbCalories = remainingCalories * 0.50; // 50% of remaining
-    const fatCalories = remainingCalories * 0.50;  // 50% of remaining
+    // Ensure remaining calories aren't negative
+    const safeRemainingCalories = Math.max(0, remainingCalories);
+    
+    const carbCalories = safeRemainingCalories * 0.50; // 50% of remaining
+    const fatCalories = safeRemainingCalories * 0.50;  // 50% of remaining
 
     const carbGrams = Math.round(carbCalories / 4);
     const fatGrams = Math.round(fatCalories / 9);
 
     return {
-        tdee: tdee.toFixed(0),
+        tdee: parseFloat(tdee.toFixed(0)), // Ensure number type
         proteinGrams: proteinGrams,
         carbGrams: carbGrams,
         fatGrams: fatGrams
     };
-} 
+}
