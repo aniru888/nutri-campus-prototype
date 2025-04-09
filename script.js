@@ -40,108 +40,41 @@ featureCards.forEach(card => {
 let currentMenuData = null;
 let userNutrientGoals = null;
 
-// Embedded menu data
-const menuData = {
-    'Monday': {
-        breakfast: [
-            { name: 'Hot preparation: Poha', nutrition: { calories: 150, protein: 3, carbs: 30, fat: 2 } },
-            { name: 'Side Dish: Sev, Onion, tomato, lemon', nutrition: { calories: 50, protein: 1, carbs: 10, fat: 0 } },
-            { name: 'Condiments: Chana Tari', nutrition: { calories: 100, protein: 4, carbs: 15, fat: 3 } },
-            { name: 'Egg item: Boiled Egg', nutrition: { calories: 70, protein: 6, carbs: 0, fat: 5 } },
-            { name: 'Bread item: Bread, Butter & Jam', nutrition: { calories: 230, protein: 3, carbs: 28, fat: 12 } },
-            { name: 'Fruit: Banana', nutrition: { calories: 60, protein: 1, carbs: 15, fat: 0 } },
-            { name: 'Milk Preparation: Tea & Coffee', nutrition: { calories: 50, protein: 1, carbs: 8, fat: 1 } },
-            { name: 'Plain Milk: Hot & Cold Milk', nutrition: { calories: 120, protein: 8, carbs: 12, fat: 5 } },
-            { name: 'Corn flakes: Cornflakes', nutrition: { calories: 100, protein: 2, carbs: 22, fat: 0 } },
-            { name: 'Bournvita: Bournvita', nutrition: { calories: 80, protein: 2, carbs: 15, fat: 1 } }
-        ],
-        lunch: [
-            { name: 'Salad: CORN SALAD', nutrition: { calories: 50, protein: 2, carbs: 10, fat: 0 } },
-            { name: 'Papad: APPALAM', nutrition: { calories: 30, protein: 1, carbs: 5, fat: 1 } },
-            { name: 'Curd item: BOONDI RAITA', nutrition: { calories: 100, protein: 3, carbs: 5, fat: 7 } },
-            { name: 'Dry veg: Lauki Kofta', nutrition: { calories: 200, protein: 5, carbs: 15, fat: 12 } },
-            { name: 'Gravy veg: SEV TOMATO', nutrition: { calories: 200, protein: 5, carbs: 15, fat: 12 } },
-            { name: 'Indian bread: Plain/Butter Roti', nutrition: { calories: 100, protein: 3, carbs: 20, fat: 1 } },
-            { name: 'Rice: Plain Rice', nutrition: { calories: 200, protein: 4, carbs: 45, fat: 0 } },
-            { name: 'Rice 2: VEG BRIYANI', nutrition: { calories: 300, protein: 8, carbs: 50, fat: 8 } },
-            { name: 'Dal preparation: MOONG DAL', nutrition: { calories: 150, protein: 8, carbs: 25, fat: 2 } },
-            { name: 'Fruit: Grapes', nutrition: { calories: 60, protein: 1, carbs: 15, fat: 0 } }
-        ],
-        dinner: [
-            { name: 'Salad: ONOIN TOMATO SALAD', nutrition: { calories: 50, protein: 2, carbs: 10, fat: 0 } },
-            { name: 'Papad: FRYUMS', nutrition: { calories: 30, protein: 1, carbs: 5, fat: 1 } },
-            { name: 'Soup: PLAIN CURD', nutrition: { calories: 100, protein: 3, carbs: 5, fat: 7 } },
-            { name: 'Dry veg: Egg curry', nutrition: { calories: 200, protein: 15, carbs: 5, fat: 12 } },
-            { name: 'Gravy veg: CHILLI PANEER', nutrition: { calories: 250, protein: 15, carbs: 5, fat: 18 } },
-            { name: 'Indian bread: Plain/Butter Roti', nutrition: { calories: 100, protein: 3, carbs: 20, fat: 1 } },
-            { name: 'Rice: Plain Rice', nutrition: { calories: 200, protein: 4, carbs: 45, fat: 0 } },
-            { name: 'Rice 2: SCHEZWAN RICE', nutrition: { calories: 300, protein: 8, carbs: 50, fat: 8 } },
-            { name: 'Dal preparation: DAL FRY', nutrition: { calories: 150, protein: 8, carbs: 25, fat: 2 } },
-            { name: 'Sweet Preparation: Jalebi', nutrition: { calories: 150, protein: 2, carbs: 25, fat: 5 } }
-        ]
-    },
-    // Add data for other days following the same pattern
-    'Tuesday': {
-        breakfast: [
-            { name: 'Hot preparation: Idli medu vada', nutrition: { calories: 200, protein: 8, carbs: 30, fat: 5 } },
-            { name: 'Side Dish: Sambhar', nutrition: { calories: 100, protein: 4, carbs: 15, fat: 2 } },
-            { name: 'Condiments: coconut chutney', nutrition: { calories: 50, protein: 1, carbs: 5, fat: 4 } },
-            { name: 'Egg item: Boiled Egg', nutrition: { calories: 70, protein: 6, carbs: 0, fat: 5 } },
-            { name: 'Bread item: Atta Bread Butter & Jam', nutrition: { calories: 230, protein: 3, carbs: 28, fat: 12 } },
-            { name: 'Fruit: Cheeku', nutrition: { calories: 60, protein: 1, carbs: 15, fat: 0 } },
-            { name: 'Milk Preparation: Tea & Coffee', nutrition: { calories: 50, protein: 1, carbs: 8, fat: 1 } },
-            { name: 'Plain Milk: Hot & Cold Milk', nutrition: { calories: 120, protein: 8, carbs: 12, fat: 5 } },
-            { name: 'Corn flakes: Cornflakes', nutrition: { calories: 100, protein: 2, carbs: 22, fat: 0 } },
-            { name: 'Bournvita: Bournvita', nutrition: { calories: 80, protein: 2, carbs: 15, fat: 1 } }
-        ],
-        lunch: [
-            { name: 'Salad: ONION, TOMATO', nutrition: { calories: 50, protein: 2, carbs: 10, fat: 0 } },
-            { name: 'Papad: FRYUMS', nutrition: { calories: 30, protein: 1, carbs: 5, fat: 1 } },
-            { name: 'Curd item: LASSI', nutrition: { calories: 150, protein: 5, carbs: 20, fat: 5 } },
-            { name: 'Dry veg: JEERA ALOO', nutrition: { calories: 200, protein: 5, carbs: 15, fat: 12 } },
-            { name: 'Gravy veg: CHOLLE', nutrition: { calories: 200, protein: 8, carbs: 25, fat: 8 } },
-            { name: 'Indian bread: Bhature', nutrition: { calories: 200, protein: 5, carbs: 30, fat: 8 } },
-            { name: 'Rice: Plain Rice', nutrition: { calories: 200, protein: 4, carbs: 45, fat: 0 } },
-            { name: 'Rice 2: Pulao', nutrition: { calories: 300, protein: 8, carbs: 50, fat: 8 } },
-            { name: 'Dal preparation: DAL FRY', nutrition: { calories: 150, protein: 8, carbs: 25, fat: 2 } },
-            { name: 'Fruit: Banana', nutrition: { calories: 60, protein: 1, carbs: 15, fat: 0 } }
-        ],
-        dinner: [
-            { name: 'Salad: Green salad', nutrition: { calories: 50, protein: 2, carbs: 10, fat: 0 } },
-            { name: 'Papad: APPALAM', nutrition: { calories: 30, protein: 1, carbs: 5, fat: 1 } },
-            { name: 'Soup: Butter milk', nutrition: { calories: 100, protein: 3, carbs: 5, fat: 7 } },
-            { name: 'Dry veg: SCHEZWAN PASTA', nutrition: { calories: 200, protein: 7, carbs: 35, fat: 4 } },
-            { name: 'Gravy veg: VEG JAIPURI', nutrition: { calories: 200, protein: 5, carbs: 15, fat: 12 } },
-            { name: 'Indian bread: Plain/Butter Roti', nutrition: { calories: 100, protein: 3, carbs: 20, fat: 1 } },
-            { name: 'Rice: Plain Rice', nutrition: { calories: 200, protein: 4, carbs: 45, fat: 0 } },
-            { name: 'Rice 2: Fried Rice', nutrition: { calories: 300, protein: 8, carbs: 50, fat: 8 } },
-            { name: 'Dal preparation: PANCHARATAN DAL', nutrition: { calories: 150, protein: 8, carbs: 25, fat: 2 } },
-            { name: 'Sweet Preparation: FRUIT CUSTARD', nutrition: { calories: 150, protein: 2, carbs: 25, fat: 5 } }
-        ]
-    }
-    // Add more days as needed
-};
+// Google Apps Script Web App URL
+const menuApiUrl = 'https://script.google.com/macros/s/AKfycbx4TU1Bx26mBZHoCQU34VTeG7iM02xXQ0532bjb3-QORDrZ9FQ1zwP9ieznGCAiqr8-/exec';
 
-// Function to get today's menu
-function getTodaysMenu() {
-    const today = new Date();
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const currentDay = dayNames[today.getDay()];
-    
-    return menuData[currentDay] || {
-        breakfast: [],
-        lunch: [],
-        dinner: []
-    };
-}
-
-// Function to load menu
-function loadMenu() {
+// Function to load menu asynchronously
+async function loadMenu() {
     const menuContent = document.querySelector('.menu-content');
-    if (!menuContent) return;
+    if (!menuContent) {
+        console.error("Menu content display area not found.");
+        return;
+    }
+    menuContent.innerHTML = '<p>Loading menu...</p>'; // Show loading indicator
 
     try {
-        const menuData = getTodaysMenu();
+        const response = await fetch(menuApiUrl);
+        if (!response.ok) {
+            // Handle HTTP errors (e.g., 404, 500 from Apps Script itself)
+            throw new Error(`Failed to fetch menu: ${response.status} ${response.statusText}`);
+        }
+
+        const menuData = await response.json();
+
+        // Check if the Apps Script returned an error object
+        if (menuData.error) {
+            throw new Error(`Error from menu API: ${menuData.message || menuData.error}`);
+        }
+         // Check if all meal arrays are empty (could happen if day column not found)
+        if (!menuData.breakfast?.length && !menuData.lunch?.length && !menuData.dinner?.length) {
+             // Display a specific message if no items were found for today
+            menuContent.innerHTML = `<p class="no-menu-message">No menu items found for today in the sheet. ${menuData.info || ''}</p>`;
+            menuContent.classList.add('show');
+            console.log("No menu items returned from API for today.", menuData);
+            return;
+        }
+
+
         const today = new Date();
         const dateStr = today.toLocaleDateString('en-US', { 
             weekday: 'long', 
@@ -152,37 +85,40 @@ function loadMenu() {
 
         let html = `<div class="date-display">Menu for ${dateStr}</div>`;
 
-        if (Object.keys(menuData).every(meal => menuData[meal].length === 0)) {
-            html += `<p class="no-menu-message">No menu available for today. Please check back later.</p>`;
-        } else {
-            for (const meal in menuData) {
-                if (menuData[meal].length > 0) {
-                    html += `<div class="meal-section">
-                        <h4>${meal.charAt(0).toUpperCase() + meal.slice(1)}</h4>
-                        <ul>`;
-                    
-                    menuData[meal].forEach(item => {
-                        html += `<li>
-                            <span class="item-name">${item.name}</span>
-                            <div class="nutrition-info">
-                                <span>${item.nutrition.calories} kcal</span>
-                                <span>${item.nutrition.protein}g protein</span>
-                                <span>${item.nutrition.carbs}g carbs</span>
-                                <span>${item.nutrition.fat}g fat</span>
-                            </div>
-                        </li>`;
-                    });
-                    
-                    html += '</ul></div>';
-                }
+        // Process breakfast, lunch, dinner from fetched data
+        const meals = ['breakfast', 'lunch', 'dinner'];
+        meals.forEach(meal => {
+            if (menuData[meal] && menuData[meal].length > 0) {
+                html += `<div class="meal-section">
+                    <h4>${meal.charAt(0).toUpperCase() + meal.slice(1)}</h4>
+                    <ul>`;
+                
+                menuData[meal].forEach(item => {
+                    // Ensure nutrition data exists, provide defaults if not
+                    const nutrition = item.nutrition || { calories: 'N/A', protein: 'N/A', carbs: 'N/A', fat: 'N/A' };
+                    html += `<li>
+                        <span class="item-name">${item.name || 'Unnamed Item'}</span>
+                        <div class="nutrition-info">
+                            <span>${nutrition.calories} kcal</span>
+                            <span>${nutrition.protein}g protein</span>
+                            <span>${nutrition.carbs}g carbs</span>
+                            <span>${nutrition.fat}g fat</span>
+                        </div>
+                    </li>`;
+                });
+                
+                html += '</ul></div>';
             }
-        }
+        });
+        
 
         menuContent.innerHTML = html;
         menuContent.classList.add('show');
+
     } catch (error) {
         console.error('Error loading menu:', error);
-        menuContent.innerHTML = '<p class="error-message">An error occurred while loading the menu. Please try again later.</p>';
+        menuContent.innerHTML = `<p class="error-message">An error occurred while loading the menu: ${error.message}. Please try again later.</p>`;
+        menuContent.classList.add('show'); // Show the error message
     }
 }
 
@@ -546,8 +482,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Load the menu
-    loadMenu();
+    // Load the menu from the API
+    loadMenu(); // Call the async function
 
     // Initialize form submission
     const form = document.getElementById('profile-form');
@@ -615,10 +551,10 @@ function calculateNutrientGoals(tdee, weightKg, goal) {
     const proteinGrams = Math.round(weightKg * proteinMultiplier);
     const proteinCalories = proteinGrams * 4;
 
-    // Macro Split (50% Carb, 50% Fat of remaining calories)
+    // Macro Split (adjust as needed, e.g., 40% Carb, 30% Fat)
     const remainingCalories = tdee - proteinCalories;
-    const carbCalories = remainingCalories * 0.50;
-    const fatCalories = remainingCalories * 0.50;
+    const carbCalories = remainingCalories * 0.50; // 50% of remaining
+    const fatCalories = remainingCalories * 0.50;  // 50% of remaining
 
     const carbGrams = Math.round(carbCalories / 4);
     const fatGrams = Math.round(fatCalories / 9);
