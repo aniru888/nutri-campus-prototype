@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriCampus Prototype</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/9fe8253a23.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">NutriCampus</div>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#nutrition-tool">Nutrition Tool</a></li>
+                <li><a href="https://docs.google.com/spreadsheets/d/1uBMqKs0r6FlhgxD77b6elkVQvrNIJEdFZcmNByyJwsk/edit?gid=19949304#gid=19949304" target="_blank" rel="noopener noreferrer">Mess Menu</a></li>
+                <li><a href="#features">Features</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="home" class="hero">
+            <div id="particles-js"></div>
+            <div class="hero-content">
+                <h1>Welcome To NutriCampus</h1>
+                <p>Your Personalized Campus Nutrition Companion</p>
+                <button class="cta-button">Get Started</button>
+            </div>
+        </section>
+
+        <section class="info-section">
+            <div class="info-content">
+                <h2>Did You Know?</h2>
+                <p>"Consistent lack of essential nutrients can impact focus, energy levels, and long-term health. Small, balanced choices make a big difference!"</p>
+            </div>
+        </section>
+
+        <section id="nutrition-tool" class="nutrition-tool">
+            <h2>Personalized Nutrition Tool</h2>
+            <form id="profile-form" class="nutrition-form">
+                <div class="form-group">
+                    <label for="height">Height (cm)</label>
+                    <input type="number" id="height" name="height" required min="100" max="250">
+                </div>
+                <div class="form-group">
+                    <label for="weight">Weight (kg)</label>
+                    <input type="number" id="weight" name="weight" required min="30" max="200">
+                </div>
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" name="age" required min="15" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select id="gender" name="gender" required>
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="activity">Activity Level</label>
+                    <select id="activity" name="activity" required>
+                        <option value="">Select Activity Level</option>
+                        <option value="sedentary">Sedentary</option>
+                        <option value="light">Lightly Active</option>
+                        <option value="moderate">Moderately Active</option>
+                        <option value="very">Very Active</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="goal">Goal</label>
+                    <select id="goal" name="goal" required>
+                        <option value="">Select Goal</option>
+                        <option value="lose">Lose Weight</option>
+                        <option value="maintain">Maintain Weight</option>
+                        <option value="gain">Gain Weight</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-button">Calculate Nutrition Plan</button>
+            </form>
+
+            <div class="results-container">
+                <div id="menu-display" class="result-card">
+                    <h3><i class="fas fa-utensils"></i> Sample Mess Menu</h3>
+                    <div class="menu-content"></div>
+                    <a href="https://docs.google.com/spreadsheets/d/1uBMqKs0r6FlhgxD77b6elkVQvrNIJEdFZcmNByyJwsk/edit?gid=19949304#gid=19949304" target="_blank" class="external-link-button">
+                        View Full Menu Sheet <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+                <div id="recommendation-output" class="result-card">
+                    <h3><i class="fas fa-bullseye"></i> Your Recommendation</h3>
+                    <div class="recommendation-content"></div>
+                </div>
+            </div>
+
+            <div class="insights-grid">
+                <div id="nutrient-summary" class="insight-card">
+                    <h3><i class="fas fa-calculator"></i> Your Estimated Daily Needs</h3>
+                    <ul>
+                        <li><strong>Calories (TDEE):</strong> <span>Calculating...</span></li>
+                        <li><strong>Protein:</strong> <span>Calculating...</span></li>
+                        <li><strong>Carbohydrates:</strong> <span>Calculating...</span></li>
+                        <li><strong>Fat:</strong> <span>Calculating...</span></li>
+                    </ul>
+                    <p class="disclaimer"><em>Estimates based on provided data. Individual needs may vary.</em></p>
+                </div>
+
+                <div id="water-recommendation" class="insight-card">
+                    <h3><i class="fas fa-tint"></i> Daily Water Intake</h3>
+                    <p>Calculating...</p>
+                </div>
+
+                <div id="health-insights" class="insight-card">
+                    <h3><i class="fas fa-heartbeat"></i> Health & Nutrient Insights</h3>
+                    <p>Enter details above.</p>
+                </div>
+            </div>
+
+            <div id="weight-projection" class="insight-card full-width-card">
+                <h3><i class="fas fa-chart-line"></i> Estimated Weight Projection (12 Weeks)</h3>
+                <canvas id="weightChart"></canvas>
+                <p class="disclaimer"><em>Note: This is a simplified projection based on estimated average calorie balance (approx. 500 kcal deficit/surplus based on goal) and doesn't account for metabolic adaptation, activity changes, or precise intake. Consult professionals for accurate planning.</em></p>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <h2>Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>Meal Planning</h3>
+                    <p>Plan your meals for the week</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Nutrition Tracking</h3>
+                    <p>Track your daily nutrition intake</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Campus Dining</h3>
+                    <p>Find healthy options on campus</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 NutriCampus. All rights reserved. Developed by LSE Group 2.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
