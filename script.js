@@ -389,25 +389,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('weightChart')?.getContext('2d');
         if (!ctx) return;
 
-        const weeks = 12;
+        const weeks = 30;
         const labels = Array.from({length: weeks + 1}, (_, i) => `Week ${i}`);
         const weightData = [currentWeight];
 
         let weeklyCalorieDiff = 0;
         if (goal === 'lose') {
-            weeklyCalorieDiff = (targetTdee - maintenanceTdee) * 7; // Should be negative
+            weeklyCalorieDiff = (targetTdee - maintenanceTdee) * 7; 
         } else if (goal === 'gain') {
-            weeklyCalorieDiff = (targetTdee - maintenanceTdee) * 7; // Should be positive
+            weeklyCalorieDiff = (targetTdee - maintenanceTdee) * 7; 
         }
         
-        // Approx 7700 kcal per kg of fat/muscle change
         const kgChangePerWeek = weeklyCalorieDiff / 7700; 
 
         for (let i = 1; i <= weeks; i++) {
             let projectedWeight = weightData[i-1] + kgChangePerWeek;
-            // Add slight randomness/variation to make it look less linear
-            projectedWeight += (Math.random() - 0.5) * 0.1; // +/- 0.05 kg noise
-            // Ensure weight doesn't go below a reasonable minimum (e.g., 30kg)
+            projectedWeight += (Math.random() - 0.5) * 0.1; 
             weightData.push(Math.max(30, projectedWeight)); 
         }
 
