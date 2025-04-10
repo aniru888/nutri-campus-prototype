@@ -147,7 +147,7 @@ function handleMenuError(error, menuContent) {
         </div>
     `;
     menuContent.classList.add('show');
-    const recommendationDiv = document.getElementById('recommendation-content');
+    const recommendationDiv = document.querySelector('.recommendation-content');
     if(recommendationDiv) {
         recommendationDiv.innerHTML = '<p>Cannot generate recommendations due to menu loading error.</p>';
     }
@@ -156,105 +156,153 @@ function handleMenuError(error, menuContent) {
 
 // --- Recommendation Logic ---
 function displayRecommendations(menu, goals) {
-    const recommendationDiv = document.getElementById('recommendation-content');
-    if (!recommendationDiv) return;
+    const recommendationDiv = document.querySelector('.recommendation-content');
+    if (!recommendationDiv) {
+        console.error('Recommendation content div not found');
+        return;
+    }
+    
     if (!menu || !goals) {
         recommendationDiv.innerHTML = '<p>Please calculate your goals and wait for the menu to load.</p>';
         return;
     }
 
-    let html = '<p>Based on your goals and today\'s menu:</p>';
-    const meals = ['breakfast', 'lunch', 'dinner'];
-    let totalRecommendedCalories = 0;
-    let totalRecommendedProtein = 0;
-    let totalRecommendedCarbs = 0;
-    let totalRecommendedFat = 0;
+    // Create HTML structure for recommendations
+    let html = '<div class="daily-recommendation">';
+    html += '<h4>Your Personalized Daily Meal Plan</h4>';
+    html += '<div class="meal-blocks">';
 
-    // Calculate per-meal targets (simple division)
-    const targetCaloriesPerMeal = goals.tdee / 3;
-    const targetProteinPerMeal = goals.proteinGrams / 3;
-    // Keep Carb/Fat targets simpler for this heuristic
-    // const targetCarbsPerMeal = goals.carbGrams / 3;
-    // const targetFatPerMeal = goals.fatGrams / 3;
+    const meals = ['breakfast', 'lunch', 'dinner'];
+    let totalDailyCalories = 0;
+    let totalDailyProtein = 0;
+    let totalDailyCarbs = 0;
+    let totalDailyFat = 0;
+
+    // Calculate target calories per meal (slightly weighted)
+    const breakfastRatio = 0.3; // 30% of daily calories
+    const lunchRatio = 0.35;    // 35% of daily calories
+    const dinnerRatio = 0.35;   // 35% of daily calories
+
+    const mealRatios = {
+        breakfast: breakfastRatio,
+        lunch: lunchRatio,
+        dinner: dinnerRatio
+    };
 
     meals.forEach(meal => {
-        html += `<div class="meal-recommendation">
-                    <h5>${meal.charAt(0).toUpperCase() + meal.slice(1)} Recommendation</h5>`;
+        const targetCalories = goals.tdee * mealRatios[meal];
+        const targetProtein = goals.proteinGrams * mealRatios[meal];
         
-        const availableItems = menu[meal] ? [...menu[meal]] : []; // Get items for this meal
-        if (!availableItems.length) {
-            html += '<p>No items available for this meal today.</p></div>';
-            return; // Skip to next meal
-        }
+        html += `<div class="meal-block">
+            <h5>${meal.charAt(0).toUpperCase() + meal.slice(1)}</h5>
+            <div class="meal-recommendation">`;
 
-        let recommendedItems = [];
-        let currentCalories = 0;
-        let currentProtein = 0;
-        let currentCarbs = 0;
-        let currentFat = 0;
-
-        // Simple Greedy Approach: Add items until calorie target is approached
-        // Sort by protein density might be better, but let's start simple.
-        availableItems.sort(() => Math.random() - 0.5); // Randomize slightly to vary results
-
-        for (const item of availableItems) {
-            const itemCalories = parseFloat(item.nutrition?.calories) || 0;
-            const itemProtein = parseFloat(item.nutrition?.protein) || 0;
-            const itemCarbs = parseFloat(item.nutrition?.carbs) || 0;
-            const itemFat = parseFloat(item.nutrition?.fat) || 0;
-
-            // Check if adding the item keeps calories within a reasonable range of the target
-            if (itemCalories > 0 && (currentCalories + itemCalories <= targetCaloriesPerMeal * 1.25)) { // Allow up to 25% overshoot
-                recommendedItems.push(item);
-                currentCalories += itemCalories;
-                currentProtein += itemProtein;
-                currentCarbs += itemCarbs;
-                currentFat += itemFat;
-
-                 // Optional: Stop if protein target is met? Or just fill calories?
-                 // Let's stick to filling calories for now.
-            }
-
-            // Break if we are already reasonably close or over the calorie target
-            if (currentCalories >= targetCaloriesPerMeal * 0.9) { 
-               // break; // Can enable this later if recommendations get too large
-            }
-        }
-
-        if (recommendedItems.length > 0) {
-            html += '<ul>';
-            recommendedItems.forEach(recItem => {
-                html += `<li>${recItem.name}</li>`; // Just list the item name
-            });
-            html += '</ul>';
-            html += `<p class="meal-nutrition-summary">Est. Nutrients: 
-                        ${Math.round(currentCalories)} kcal, 
-                        ${Math.round(currentProtein)}g P, 
-                        ${Math.round(currentCarbs)}g C, 
-                        ${Math.round(currentFat)}g F
-                     </p>`;
-            // Accumulate totals
-            totalRecommendedCalories += currentCalories;
-            totalRecommendedProtein += currentProtein;
-            totalRecommendedCarbs += currentCarbs;
-            totalRecommendedFat += currentFat;
+        if (!menu[meal] || menu[meal].length === 0) {
+            html += '<p>No menu items available for this meal.</p>';
         } else {
-            html += '<p>Could not select suitable items for this meal based on targets.</p>';
+            const selectedItems = selectOptimalMealItems(menu[meal], {
+                targetCalories: targetCalories,
+                targetProtein: targetProtein
+            });
+
+            // Display selected items with portions
+            selectedItems.forEach(item => {
+                const portion = item.portion || 1;
+                html += `<div class="portion-recommendation">
+                    <span class="food-item">${item.name} (${portion}x serving)</span>
+                    <span class="nutrition-values">
+                        ${Math.round(item.nutrition.calories * portion)} kcal, 
+                        ${Math.round(item.nutrition.protein * portion)}g protein, 
+                        ${Math.round(item.nutrition.carbs * portion)}g carbs, 
+                        ${Math.round(item.nutrition.fat * portion)}g fat
+                    </span>
+                </div>`;
+
+                totalDailyCalories += item.nutrition.calories * portion;
+                totalDailyProtein += item.nutrition.protein * portion;
+                totalDailyCarbs += item.nutrition.carbs * portion;
+                totalDailyFat += item.nutrition.fat * portion;
+            });
+
+            // Add meal subtotal
+            const mealTotal = selectedItems.reduce((acc, item) => {
+                return {
+                    calories: acc.calories + (item.nutrition.calories * (item.portion || 1)),
+                    protein: acc.protein + (item.nutrition.protein * (item.portion || 1))
+                };
+            }, { calories: 0, protein: 0 });
+
+            html += `<div class="meal-totals">
+                Meal Total: ${Math.round(mealTotal.calories)} kcal, 
+                ${Math.round(mealTotal.protein)}g protein
+            </div>`;
         }
 
-        html += '</div>'; // Close meal-recommendation
+        html += '</div></div>';
     });
 
-     // Add overall summary
-    html += `<div class="total-recommendation-summary">
-                <h5>Overall Estimated Intake:</h5>
-                <p>Calories: ${Math.round(totalRecommendedCalories)} / ${goals.tdee} kcal</p>
-                <p>Protein: ${Math.round(totalRecommendedProtein)} / ${goals.proteinGrams} g</p>
-                <p>Carbs: ${Math.round(totalRecommendedCarbs)} / ${goals.carbGrams} g</p>
-                <p>Fat: ${Math.round(totalRecommendedFat)} / ${goals.fatGrams} g</p>
-             </div>`;
+    // Add daily totals and comparison with goals
+    html += `<div class="daily-totals">
+        <h5>Daily Nutrition Totals</h5>
+        <ul>
+            <li>Calories: ${Math.round(totalDailyCalories)} / ${goals.tdee} kcal 
+                (${Math.round((totalDailyCalories/goals.tdee) * 100)}% of goal)</li>
+            <li>Protein: ${Math.round(totalDailyProtein)} / ${goals.proteinGrams}g 
+                (${Math.round((totalDailyProtein/goals.proteinGrams) * 100)}% of goal)</li>
+            <li>Carbs: ${Math.round(totalDailyCarbs)} / ${goals.carbGrams}g 
+                (${Math.round((totalDailyCarbs/goals.carbGrams) * 100)}% of goal)</li>
+            <li>Fat: ${Math.round(totalDailyFat)} / ${goals.fatGrams}g 
+                (${Math.round((totalDailyFat/goals.fatGrams) * 100)}% of goal)</li>
+        </ul>
+    </div>`;
 
+    html += '</div></div>';
     recommendationDiv.innerHTML = html;
+    recommendationDiv.classList.add('show');
+}
+
+// Helper function to select optimal meal items
+function selectOptimalMealItems(availableItems, targets) {
+    let selectedItems = [];
+    let currentCalories = 0;
+    let currentProtein = 0;
+
+    // Sort items by protein-to-calorie ratio for better nutrition
+    const sortedItems = [...availableItems].sort((a, b) => {
+        const ratioA = (a.nutrition?.protein || 0) / (a.nutrition?.calories || 1);
+        const ratioB = (b.nutrition?.protein || 0) / (b.nutrition?.calories || 1);
+        return ratioB - ratioA;
+    });
+
+    // First pass: add high-protein items
+    for (const item of sortedItems) {
+        if (!item.nutrition) continue;
+        
+        // Calculate optimal portion size
+        let portion = 1;
+        if (currentCalories < targets.targetCalories) {
+            portion = Math.min(
+                Math.ceil((targets.targetCalories - currentCalories) / item.nutrition.calories),
+                3 // Maximum portion size
+            );
+            portion = Math.max(portion, 1); // Minimum portion size
+        }
+
+        // Check if adding this item (with portion) would exceed targets too much
+        const newCalories = currentCalories + (item.nutrition.calories * portion);
+        if (newCalories <= targets.targetCalories * 1.1) { // Allow 10% overflow
+            selectedItems.push({...item, portion: portion});
+            currentCalories = newCalories;
+            currentProtein += item.nutrition.protein * portion;
+        }
+
+        // Stop if we've reached our targets
+        if (currentCalories >= targets.targetCalories && currentProtein >= targets.targetProtein) {
+            break;
+        }
+    }
+
+    return selectedItems;
 }
 // --- End Recommendation Logic ---
 
@@ -444,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayWeightProjection(goal, weight, userTdee, maintenanceTdee); // Pass maintenance TDEE
 
                 // Clear any existing recommendations first
-                const recommendationContentDiv = document.getElementById('recommendation-content');
+                const recommendationContentDiv = document.querySelector('.recommendation-content');
                 if (recommendationContentDiv) {
                     recommendationContentDiv.innerHTML = '<p>Calculating recommendations...</p>';
                 }
