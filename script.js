@@ -62,75 +62,96 @@ async function loadMenu() {
         }
 
         const menuData = await response.json();
-
-        if (menuData.error) {
-            throw new Error(`Error from menu API: ${menuData.message || menuData.error}`);
-        }
-
-        // Store fetched data globally
-        fetchedMenuData = menuData;
-
-        // Check if recommendations should be displayed now
-        if (userNutrientGoals) {
-            displayRecommendations(fetchedMenuData, userNutrientGoals);
-        }
-
-        if (!menuData.breakfast?.length && !menuData.lunch?.length && !menuData.dinner?.length) {
-            menuContent.innerHTML = `<p class="no-menu-message">No menu items found for today in the sheet. ${menuData.info || ''}</p>`;
-            menuContent.classList.add('show');
-            console.log("No menu items returned from API for today.", menuData);
-            // Also clear recommendations if no menu
-            const recommendationDiv = document.getElementById('recommendation-content');
-            if(recommendationDiv) recommendationDiv.innerHTML = '<p>Cannot generate recommendations without menu data.</p>';
-            return;
-        }
-
-        const today = new Date();
-        const dateStr = today.toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        });
-
-        let html = `<div class="date-display">Menu for ${dateStr}</div>`;
-
-        const meals = ['breakfast', 'lunch', 'dinner'];
-        meals.forEach(meal => {
-            if (menuData[meal] && menuData[meal].length > 0) {
-                html += `<div class="meal-section">
-                    <h4>${meal.charAt(0).toUpperCase() + meal.slice(1)}</h4>
-                    <ul>`;
-                
-                menuData[meal].forEach(item => {
-                    const nutrition = item.nutrition || { calories: 'N/A', protein: 'N/A', carbs: 'N/A', fat: 'N/A' };
-                    html += `<li>
-                        <span class="item-name">${item.name || 'Unnamed Item'}</span>
-                        <div class="nutrition-info">
-                            <span>${nutrition.calories} kcal</span>
-                            <span>${nutrition.protein}g protein</span>
-                            <span>${nutrition.carbs}g carbs</span>
-                            <span>${nutrition.fat}g fat</span>
-                        </div>
-                    </li>`;
-                });
-                
-                html += '</ul></div>';
-            }
-        });
-        
-        menuContent.innerHTML = html;
-        menuContent.classList.add('show');
-
+        return handleMenuData(menuData, menuContent); // Separate the data handling
     } catch (error) {
         console.error('Error loading menu:', error);
-        menuContent.innerHTML = `<p class="error-message">An error occurred while loading the menu: ${error.message}. Please try again later.</p>`;
-        menuContent.classList.add('show');
-        fetchedMenuData = null; // Reset on error
-        // Also clear recommendations on error
-        const recommendationDiv = document.getElementById('recommendation-content');
-        if(recommendationDiv) recommendationDiv.innerHTML = '<p>Cannot generate recommendations due to menu loading error.</p>';
+        handleMenuError(error, menuContent);
+        return null;
     }
+}
+
+// Separate function to handle menu data
+function handleMenuData(menuData, menuContent) {
+    if (menuData.error) {
+        throw new Error(`Error from menu API: ${menuData.message || menuData.error}`);
+    }
+
+    // Store fetched data globally
+    fetchedMenuData = menuData;
+
+    // Check if recommendations should be displayed now
+    if (userNutrientGoals) {
+        displayRecommendations(fetchedMenuData, userNutrientGoals);
+    }
+
+    if (!menuData.breakfast?.length && !menuData.lunch?.length && !menuData.dinner?.length) {
+        menuContent.innerHTML = `<p class="no-menu-message">No menu items found for today in the sheet. ${menuData.info || ''}</p>`;
+        menuContent.classList.add('show');
+        console.log("No menu items returned from API for today.", menuData);
+        const recommendationDiv = document.getElementById('recommendation-content');
+        if(recommendationDiv) recommendationDiv.innerHTML = '<p>Cannot generate recommendations without menu data.</p>';
+        return null;
+    }
+
+    displayMenu(menuData, menuContent);
+    return menuData;
+}
+
+// Separate function to handle menu display
+function displayMenu(menuData, menuContent) {
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+
+    let html = `<div class="date-display">Menu for ${dateStr}</div>`;
+
+    const meals = ['breakfast', 'lunch', 'dinner'];
+    meals.forEach(meal => {
+        if (menuData[meal] && menuData[meal].length > 0) {
+            html += `<div class="meal-section">
+                <h4>${meal.charAt(0).toUpperCase() + meal.slice(1)}</h4>
+                <ul>`;
+            
+            menuData[meal].forEach(item => {
+                const nutrition = item.nutrition || { calories: 'N/A', protein: 'N/A', carbs: 'N/A', fat: 'N/A' };
+                html += `<li>
+                    <span class="item-name">${item.name || 'Unnamed Item'}</span>
+                    <div class="nutrition-info">
+                        <span>${nutrition.calories} kcal</span>
+                        <span>${nutrition.protein}g protein</span>
+                        <span>${nutrition.carbs}g carbs</span>
+                        <span>${nutrition.fat}g fat</span>
+                    </div>
+                </li>`;
+            });
+            
+            html += '</ul></div>';
+        }
+    });
+    
+    menuContent.innerHTML = html;
+    menuContent.classList.add('show');
+}
+
+// Function to handle menu loading errors
+function handleMenuError(error, menuContent) {
+    console.error('Error loading menu:', error);
+    menuContent.innerHTML = `
+        <div class="error-message">
+            An error occurred while loading the menu: ${error.message}
+            <small>Please try again later or contact support if the problem persists.</small>
+        </div>
+    `;
+    menuContent.classList.add('show');
+    const recommendationDiv = document.getElementById('recommendation-content');
+    if(recommendationDiv) {
+        recommendationDiv.innerHTML = '<p>Cannot generate recommendations due to menu loading error.</p>';
+    }
+    fetchedMenuData = null;
 }
 
 // --- Recommendation Logic ---
@@ -317,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tdeeForm = document.getElementById('profile-form'); // Changed from 'tdee-form' to match HTML
     if (tdeeForm) {
         tdeeForm.addEventListener('submit', async function(event) {
-            event.preventDefault(); // Prevent default form submission
+            event.preventDefault(); // Prevent form submission at the very beginning
             console.log("Form submission prevented");
             
             try {
@@ -511,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     x: {
                          title: {
                             display: true,
-                            text: 'Time'
+                            text: 'Time (30 Week Projection)'
                         }
                     }
                 },
