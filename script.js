@@ -314,18 +314,18 @@ document.addEventListener('DOMContentLoaded', function() {
     loadMenu(); // Call the async function
 
     // TDEE Calculator Event Listener
-    const tdeeForm = document.getElementById('tdee-form');
+    const tdeeForm = document.getElementById('profile-form'); // Changed from 'tdee-form' to match HTML
     if (tdeeForm) {
-        tdeeForm.addEventListener('submit', function(event) {
+        tdeeForm.addEventListener('submit', async function(event) {
             event.preventDefault(); // Prevent default form submission
-            console.log("TDEE form submitted, default prevented."); // Debug log
+            console.log("Form submission prevented");
             
-            try { // Add try block
+            try {
                 const ageInput = document.getElementById('age');
                 const genderInput = document.getElementById('gender');
                 const heightInput = document.getElementById('height');
                 const weightInput = document.getElementById('weight');
-                const activityLevelInput = document.getElementById('activity-level');
+                const activityLevelInput = document.getElementById('activity'); // Changed from 'activity-level' to match HTML
                 const goalInput = document.getElementById('goal');
 
                 // Validate all inputs exist before accessing .value
@@ -339,11 +339,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 const gender = genderInput.value;
                 const height = parseInt(heightInput.value);
                 const weight = parseInt(weightInput.value);
-                const activityLevel = parseFloat(activityLevelInput.value);
+                
+                // Map activity levels to multipliers
+                const activityMultipliers = {
+                    'sedentary': 1.2,
+                    'light': 1.375,
+                    'moderate': 1.55,
+                    'very': 1.725
+                };
+                const activityLevel = activityMultipliers[activityLevelInput.value] || 1.2;
                 const goal = goalInput.value;
 
                 // Check for valid parsed numbers and selections
-                if (isNaN(age) || !gender || isNaN(height) || isNaN(weight) || isNaN(activityLevel) || !goal) {
+                if (isNaN(age) || !gender || isNaN(height) || isNaN(weight) || !activityLevel || !goal) {
                     alert('Please fill in all fields with valid values.');
                     console.warn('Form validation failed: Invalid input values', { age, gender, height, weight, activityLevel, goal });
                     return;
@@ -414,15 +422,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Display Weight Projection Chart
                 displayWeightProjection(goal, weight, userTdee, maintenanceTdee); // Pass maintenance TDEE
 
-                // Try to display recommendations immediately if menu is already loaded
+                // Clear any existing recommendations first
                 const recommendationContentDiv = document.getElementById('recommendation-content');
-                if (fetchedMenuData) {
-                    console.log("Menu data available, calling displayRecommendations..."); // Debug log
-                    displayRecommendations(fetchedMenuData, userNutrientGoals);
-                } else if(recommendationContentDiv) {
-                    console.log("Menu data not yet available, showing waiting message..."); // Debug log
-                    recommendationContentDiv.innerHTML = '<p>Calculating recommendations... (Waiting for menu data)</p>'; 
+                if (recommendationContentDiv) {
+                    recommendationContentDiv.innerHTML = '<p>Calculating recommendations...</p>';
                 }
+
+                // If we don't have menu data yet, reload it
+                if (!fetchedMenuData) {
+                    await loadMenu();
+                }
+
+                // Now display recommendations with the menu data
+                if (fetchedMenuData) {
+                    console.log("Displaying recommendations with menu data");
+                    displayRecommendations(fetchedMenuData, userNutrientGoals);
+                } else {
+                    console.log("No menu data available");
+                    if (recommendationContentDiv) {
+                        recommendationContentDiv.innerHTML = '<p>Unable to load menu data for recommendations.</p>';
+                    }
+                }
+
                 console.log("Form processing complete."); // Debug log
 
             } catch (error) { // Add catch block
