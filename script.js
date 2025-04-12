@@ -266,7 +266,6 @@ function selectOptimalMealItems(availableItems, targets, meal) {
     let selectedItems = [];
     let currentCalories = 0;
     let currentProtein = 0;
-    let hasStapleFood = false;
 
     // Function to check if an item is a staple food (rice or Indian bread)
     const isStapleFood = (item) => {
@@ -275,14 +274,29 @@ function selectOptimalMealItems(availableItems, targets, meal) {
     };
 
     // For lunch and dinner, first ensure we have a staple food
-    if ((meal === 'lunch' || meal === 'dinner') && !hasStapleFood) {
+    if (meal === 'lunch' || meal === 'dinner') {
         const stapleItems = availableItems.filter(isStapleFood);
         if (stapleItems.length > 0) {
+            // Add one portion of available staple food
             const staple = stapleItems[0];
             selectedItems.push({ ...staple, portion: 1 });
             currentCalories += staple.nutrition.calories;
             currentProtein += staple.nutrition.protein;
-            hasStapleFood = true;
+        } else {
+            // If no staple food available, add a default Indian bread
+            const defaultBread = {
+                name: "Indian Bread (Roti)",
+                nutrition: {
+                    calories: 80,
+                    protein: 3,
+                    carbs: 15,
+                    fat: 1
+                },
+                portion: 1
+            };
+            selectedItems.push(defaultBread);
+            currentCalories += defaultBread.nutrition.calories;
+            currentProtein += defaultBread.nutrition.protein;
         }
     }
 
