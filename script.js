@@ -203,7 +203,7 @@ function displayRecommendations(menu, goals) {
             const selectedItems = selectOptimalMealItems(menu[meal], {
                 targetCalories: targetCalories,
                 targetProtein: targetProtein
-            });
+            }, meal);
 
             // Display selected items with portions
             selectedItems.forEach(item => {
@@ -262,20 +262,41 @@ function displayRecommendations(menu, goals) {
 }
 
 // Helper function to select optimal meal items
-function selectOptimalMealItems(availableItems, targets) {
+function selectOptimalMealItems(availableItems, targets, meal) {
     let selectedItems = [];
     let currentCalories = 0;
     let currentProtein = 0;
+    let hasStapleFood = false;
 
-    // Sort items by protein-to-calorie ratio for better nutrition
-    const sortedItems = [...availableItems].sort((a, b) => {
+    // Function to check if an item is a staple food (rice or Indian bread)
+    const isStapleFood = (item) => {
+        const name = item.name.toLowerCase();
+        return name.includes('rice') || name.includes('roti') || name.includes('naan') || name.includes('paratha') || name.includes('chapati');
+    };
+
+    // For lunch and dinner, first ensure we have a staple food
+    if ((meal === 'lunch' || meal === 'dinner') && !hasStapleFood) {
+        const stapleItems = availableItems.filter(isStapleFood);
+        if (stapleItems.length > 0) {
+            const staple = stapleItems[0];
+            selectedItems.push({ ...staple, portion: 1 });
+            currentCalories += staple.nutrition.calories;
+            currentProtein += staple.nutrition.protein;
+            hasStapleFood = true;
+        }
+    }
+
+    // Sort remaining items by protein-to-calorie ratio for better nutrition
+    const remainingItems = availableItems.filter(item => 
+        (meal === 'breakfast') || !isStapleFood(item) || !selectedItems.some(selected => selected.name === item.name)
+    ).sort((a, b) => {
         const ratioA = (a.nutrition?.protein || 0) / (a.nutrition?.calories || 1);
         const ratioB = (b.nutrition?.protein || 0) / (b.nutrition?.calories || 1);
         return ratioB - ratioA;
     });
 
-    // First pass: add high-protein items
-    for (const item of sortedItems) {
+    // Add remaining items based on nutritional targets
+    for (const item of remainingItems) {
         if (!item.nutrition) continue;
         
         // Calculate optimal portion size
