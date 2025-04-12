@@ -277,13 +277,13 @@ function selectOptimalMealItems(availableItems, targets, meal) {
     if (meal === 'lunch' || meal === 'dinner') {
         const stapleItems = availableItems.filter(isStapleFood);
         if (stapleItems.length > 0) {
-            // Add one portion of available staple food
+            // Add two portions of available staple food
             const staple = stapleItems[0];
-            selectedItems.push({ ...staple, portion: 1 });
-            currentCalories += staple.nutrition.calories;
-            currentProtein += staple.nutrition.protein;
+            selectedItems.push({ ...staple, portion: 2 });  // Changed to 2 portions
+            currentCalories += staple.nutrition.calories * 2;  // Multiply by 2 for two portions
+            currentProtein += staple.nutrition.protein * 2;  // Multiply by 2 for two portions
         } else {
-            // If no staple food available, add a default Indian bread
+            // If no staple food available, add two default Indian breads
             const defaultBread = {
                 name: "Indian Bread (Roti)",
                 nutrition: {
@@ -292,11 +292,11 @@ function selectOptimalMealItems(availableItems, targets, meal) {
                     carbs: 15,
                     fat: 1
                 },
-                portion: 1
+                portion: 2  // Changed to 2 portions
             };
             selectedItems.push(defaultBread);
-            currentCalories += defaultBread.nutrition.calories;
-            currentProtein += defaultBread.nutrition.protein;
+            currentCalories += defaultBread.nutrition.calories * 2;  // Multiply by 2 for two portions
+            currentProtein += defaultBread.nutrition.protein * 2;  // Multiply by 2 for two portions
         }
     }
 
